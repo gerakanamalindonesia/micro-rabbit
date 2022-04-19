@@ -1,0 +1,74 @@
+version: "3.2"
+services:
+  rabbitmq:
+    image: rabbitmq:3.8-management-alpine
+    container_name: 'rabbitmq'
+    ports:
+        - 5672:5672
+        - 15672:15672
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+      - RABBITMQ_DEFAULT_VHOST=myvhost
+    volumes:
+      - /data/rabbitmq:/var/lib/rabbitmq
+    networks:
+        - rabbitmq_nodejs
+  
+  dbapp1:
+    container_name: dbapp1
+    image: postgres
+    ports:
+      - 5433:5432
+    volumes:
+      - ./data/dbapp1:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5433
+
+  dbapp2:
+    container_name: dbapp2
+    image: postgres
+    ports:
+      - 5434:5432
+    volumes:
+      - ./data/dbapp2:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5434
+  
+  producer: 
+    image: aplikasi-publisher
+    container_name: producer-app
+    build: ./producer
+    ports:
+      - '5001:5001'
+    environment:
+      - EXPRESS_PORT_PRODUCER=5001
+      - RABBIT_CONNECTION=amqp://admin:admin@rabbitmq:5672/myvhost
+    depends_on:
+      - dbapp1
+      - rabbitmq
+
+  consumer: 
+    image: aplikasi-consumer
+    container_name: consumer-app
+    build: ./consumer
+    ports:
+      - '5002:5002'
+    environment:
+      - EXPRESS_PORT_CONSUMER=5002
+      - RABBIT_CONNECTION=amqp://admin:admin@rabbitmq:5672/myvhost
+    depends_on:
+      - dbapp2
+      - rabbitmq
+
+networks:
+  rabbitmq_nodejs:
+    driver: bridge
